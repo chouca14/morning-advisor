@@ -1,0 +1,28 @@
+name: morning-advisor
+
+on:
+  schedule:
+    # 05:00 Europe/Zurich = 03:00 UTC (summer) / 04:00 UTC (winter).
+    # Both fire; decide.py skips the one that is too early or redundant.
+    - cron: "0 3 * * *"
+    - cron: "0 4 * * *"
+  workflow_dispatch:   # manual run from the Actions tab (forces a run)
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run advisor
+        env:
+          FORCE: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
+        run: python3 decide.py
+      - name: Commit result
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
+          git add result.json state.json
+          git diff --cached --quiet || (git commit -m "update $(date -u +%F)" && git push)
