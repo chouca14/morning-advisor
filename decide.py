@@ -42,6 +42,9 @@ SUNNY_HOURS = range(8, 20)      # 08:00..20:00
 SUNNY_MAX_CLOUD_PCT = 30
 SKI_SNOW_HOUR = 12              # snow depth read at noon
 
+NAME = "Guilhem"
+LABEL = {"bike": "bike", "sail": "sailing", "ski": "skiing"}
+
 # Approx. Lake Geneva surface temp by month (deg C). ESTIMATE, not measured.
 # Override with env var WATER_TEMP_C, or replace get_water_temp() with a real source.
 WATER_BY_MONTH = {1: 6, 2: 5.5, 3: 6, 4: 8, 5: 12, 6: 17,
@@ -84,7 +87,7 @@ def first_window(hours, ok):
 
 
 def evaluate(nyon, champ, water_c):
-    """Return {sport: one-line weather summary} for feasible sports."""
+    """Return {sport: data dict} for feasible sports."""
     out = {}
 
     # BIKE: dry + calm + warm, 3 consecutive hours
@@ -98,7 +101,7 @@ def evaluate(nyon, champ, water_c):
         hrs = range(s, s + WINDOW)
         w = max(g(nyon, "wind_speed_10m", h) for h in hrs)
         t = min(g(nyon, "temperature_2m", h) for h in hrs)
-        out["bike"] = f"Bike, Nyon: from {s}h, {t:.0f} degrees, wind {w:.0f} knots, dry"
+        out["bike"] = {"start": s, "temp": t, "wind": w}
 
     # SAIL: wind band + warm air + warm water, 3 consecutive hours
     def sail_ok(h):
@@ -111,17 +114,46 @@ def evaluate(nyon, champ, water_c):
             hrs = range(s, s + WINDOW)
             w = min(g(nyon, "wind_speed_10m", h) for h in hrs)
             t = min(g(nyon, "temperature_2m", h) for h in hrs)
-            out["sail"] = (f"Sailing, Nyon: from {s}h, wind {w:.0f} knots, "
-                           f"air {t:.0f}, water about {water_c:.0f}")
+            out["sail"] = {"start": s, "wind": w, "temp": t, "water": water_c}
 
     # SKI: >=30 cm and mean cloud cover <30% over 08-20h
     snow_cm = g(champ, "snow_depth", SKI_SNOW_HOUR) * 100
     clouds = [g(champ, "cloud_cover", h) for h in SUNNY_HOURS]
     cloud = sum(clouds) / len(clouds)
     if snow_cm >= SKI_MIN_SNOW_CM and cloud < SUNNY_MAX_CLOUD_PCT:
-        out["ski"] = f"Ski, Champery: {snow_cm:.0f} cm snow, clouds {cloud:.0f} percent"
+        out["ski"] = {"snow": snow_cm, "cloud": cloud}
 
     return out
+
+
+def hour_text(h):
+    return f"{h % 12 or 12} {'AM' if h < 12 else 'PM'}"
+
+
+def describe(sport, d):
+    if sport == "bike":
+        return (f"In Nyon, it looks good for cycling from {hour_text(d['start'])}: "
+                f"around {d['temp']:.0f} degrees, a light wind of {d['wind']:.0f} knots, "
+                f"and no rain for at least {WINDOW} hours.")
+    if sport == "sail":
+        return (f"In Nyon, there's a nice breeze for sailing from {hour_text(d['start'])}: "
+                f"about {d['wind']:.0f} knots of wind, {d['temp']:.0f} degrees in the air, "
+                f"and the lake is around {d['water']:.0f} degrees.")
+    return (f"In Champéry, there are {d['snow']:.0f} centimeters of snow "
+            f"and a sunny day ahead.")
+
+
+def build_message(sports, found):
+    greet = f"Good morning {NAME}, "
+    if not sports:
+        return greet + "no sport looks possible today."
+    names = [LABEL[s] for s in sports]
+    if len(names) == 1:
+        intro = f"today the suggested activity is {names[0]}."
+    else:
+        intro = ("today the suggested activities are "
+                 + ", ".join(names[:-1]) + " and " + names[-1] + ".")
+    return greet + intro + " " + " ".join(describe(s, found[s]) for s in sports)
 
 
 def load(path):
@@ -155,7 +187,8 @@ def main():
         found = evaluate(nyon, champ, get_water_temp(now.month))
     except Exception as e:  # network/API failure: report once, keep state
         write(RESULT, {"date": today, "changed": True, "sports": [],
-                       "message": f"Weather check failed: {e}"})
+                       "message": f"Good morning {NAME}, the weather check failed today.",
+                       "error": str(e)})
         return
 
     sports = sorted(found)
@@ -170,10 +203,8 @@ def main():
     changed = yesterday is None or set(sports) != set(yesterday)
     if not changed:
         message = ""
-    elif sports:
-        message = ". ".join(found[s] for s in sports)
     else:
-        message = "No sport possible today."
+        message = build_message(sports, found)
 
     write(STATE, {"date": today, "sports": sports, "yesterday": yesterday})
     write(RESULT, {"date": today, "changed": changed, "sports": sports,
