@@ -1,6 +1,8 @@
 {
-  "date": "2026-11-14",
-  "changed": false,
-  "sports": [],
-  "message": ""
+  "date": "2026-11-15",
+  "changed": true,
+  "sports": [
+    "bike"
+  ],
+  "message": "Good morning Guilhem, today the suggested activity is bike. In Nyon, it looks good for cycling from 11 AM: around 9 degrees, a light wind of 9 knots, and no rain for at least 3 hours."
 }
