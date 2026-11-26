@@ -1,7 +1,6 @@
 {
   "date": "2026-11-26",
-  "changed": true,
+  "changed": false,
   "sports": [],
-  "message": "Good morning Guilhem, the weather check failed today.",
-  "error": "<urlopen error _ssl.c:1063: The handshake operation timed out>"
+  "message": ""
 }
