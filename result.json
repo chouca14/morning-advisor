@@ -1,7 +1,8 @@
 {
   "date": "2026-11-27",
   "changed": true,
-  "sports": [],
-  "message": "Good morning Guilhem, the weather check failed today.",
-  "error": "<urlopen error _ssl.c:1063: The handshake operation timed out>"
+  "sports": [
+    "ski"
+  ],
+  "message": "Good morning Guilhem, today the suggested activity is skiing. In Champéry, there are 61 centimeters of snow and a sunny day ahead."
 }
